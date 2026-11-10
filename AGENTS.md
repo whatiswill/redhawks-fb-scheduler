@@ -2,6 +2,9 @@
 
 Read this before changing anything. It applies to every AI assistant (Claude, ChatGPT/Codex, Gemini) and every person.
 
+## Read first
+`docs/CONTEXT.md` is the shared memory for this project: how RedHawks F&B scheduling works, Will's pain points, decisions so far. Read it before planning work. When you learn something new from Will, update it in your pull request.
+
 ## What this is
 A staff scheduling tool for the Fargo-Moorhead RedHawks food and beverage department. Google Sheets is the database; a Google Apps Script web app on top of it is what the manager and staff use (staff mostly on phones). Will (Director of F&B) owns it.
 
