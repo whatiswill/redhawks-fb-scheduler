@@ -227,12 +227,12 @@ function smsLink(phone, body) { var d = String(phone || '').replace(/[^\d+]/g, '
 function spotOf(cell) { var v = String(cell || '').trim(); return v.charAt(0) === '?' ? v.slice(1).trim() : v; }
 function lc(s) { return String(s || '').toLowerCase(); }
 var NOCELL = { w: false, s: '', a: false, off: false, n: '', u: false };
-function cellOf(i, g) { return (D.cells && D.cells[i] && D.cells[i][g]) || NOCELL; }
 
 /* ====================== MANAGER ====================== */
 if (MODE === 'admin') (function () {
   var PIN = store('rh_pin') || '';
   var D = null, G = 0, VIEW = 'game';
+  function cellOf(i, g) { return (D && D.cells && D.cells[i] && D.cells[i][g]) || NOCELL; }
 
   function signIn(pin) {
     return call('apiLoad', pin).then(function (d) {
