@@ -20,6 +20,8 @@ Tabs: Schedule, Availability, Staff, Spots, Games. Rows on Schedule, Availabilit
 4. Party deck spots only count when the deck is sold.
 
 ## How to work
+- Audits, reviews, findings, questions and proposed ideas go in a GitHub issue on this repo, not only in chat. Use one issue per topic with a clear title, so Will and the other assistants can read and reply there. Link the issue in your chat answer.
+- When you start work on an issue, link it from the pull request ("Fixes #12").
 - Never commit to `main` directly. Make a branch, open a pull request, and explain in plain words what changes for Will and the staff.
 - Keep `Code.gs` and `App.html` as single files: Apps Script has no build step here and the files are copied as they are.
 - Run `bash scripts/check.sh` before opening a pull request (CI runs it too).
