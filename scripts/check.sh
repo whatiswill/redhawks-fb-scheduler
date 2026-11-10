@@ -15,3 +15,4 @@ console.log("App.html: "+blocks.length+" script block(s) OK");
 '
 node -e 'JSON.parse(require("fs").readFileSync("src/appsscript.json","utf8")); console.log("appsscript.json OK")'
 echo "Code.gs OK"
+node tests/cells.test.js

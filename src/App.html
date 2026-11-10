@@ -226,6 +226,8 @@ function firstName(n) { return String(n).split(' ')[0]; }
 function smsLink(phone, body) { var d = String(phone || '').replace(/[^\d+]/g, ''); return d ? 'sms:' + d + '?&body=' + encodeURIComponent(body) : ''; }
 function spotOf(cell) { var v = String(cell || '').trim(); return v.charAt(0) === '?' ? v.slice(1).trim() : v; }
 function lc(s) { return String(s || '').toLowerCase(); }
+var NOCELL = { w: false, s: '', a: false, off: false, n: '', u: false };
+function cellOf(i, g) { return (D.cells && D.cells[i] && D.cells[i][g]) || NOCELL; }
 
 /* ====================== MANAGER ====================== */
 if (MODE === 'admin') (function () {
@@ -273,7 +275,7 @@ if (MODE === 'admin') (function () {
   function neededSpots() { return D.spots.filter(function (s) { return !s.deck || deckSold(s); }); }
   function whoIn(spotName) {
     var out = [];
-    D.staff.forEach(function (p, i) { if (lc(spotOf(D.grid[i][G])) === lc(spotName)) out.push(i); });
+    D.staff.forEach(function (p, i) { if (lc(cellOf(i, G).s) === lc(spotName)) out.push(i); });
     return out;
   }
 
@@ -313,8 +315,8 @@ if (MODE === 'admin') (function () {
       return '<div class="card" style="margin:0"><h3>' + esc(a) + '</h3>' + areas[a].map(function (s) {
         var ppl = whoIn(s.name), html = '';
         ppl.forEach(function (i) {
-          var asked = String(D.grid[i][G]).trim().charAt(0) === '?';
-          html += '<button class="pill ' + (asked ? 'p-blue' : 'p-green') + '" data-i="' + i + '">' + esc(D.staff[i].name) + (asked ? ' (asked)' : '') + '</button>';
+          var pc = cellOf(i, G), asked = pc.a;
+          html += '<button class="pill ' + (asked ? 'p-blue' : 'p-green') + '" data-i="' + i + '" title="' + esc(D.grid[i][G]) + '">' + esc(D.staff[i].name) + (asked ? ' (asked)' : '') + (pc.n ? ' *' : '') + '</button>';
         });
         for (var k = ppl.length; k < s.need; k++) html += '<button class="pill p-open" data-open="' + esc(s.name) + '">Open</button>';
         return '<div class="spot"><div class="name">' + esc(s.name) + '</div><div class="seats">' + html + '</div></div>';
@@ -324,10 +326,10 @@ if (MODE === 'admin') (function () {
     var spare = [], out = [], known = {};
     D.spots.forEach(function (s) { known[lc(s.name)] = 1; });
     D.staff.forEach(function (p, i) {
-      var c = String(D.grid[i][G] || '').trim();
+      var c = String(D.grid[i][G] || '').trim(), pc = cellOf(i, G);
       if (!c && D.avail[i][G] === 'Y') spare.push('<button class="pill p-yellow" data-i="' + i + '">' + esc(p.name) + '</button>');
-      else if (!c || c.toUpperCase() === 'OFF') out.push('<button class="pill p-grey" data-i="' + i + '">' + esc(p.name) + (c ? ' (off)' : '') + '</button>');
-      else if (!known[lc(spotOf(c))]) out.push('<button class="pill p-grey" data-i="' + i + '">' + esc(p.name) + ': ' + esc(c) + '</button>');
+      else if (!pc.w) out.push('<button class="pill p-grey" data-i="' + i + '">' + esc(p.name) + (c ? ' (' + esc(pc.n || (pc.off ? 'off' : c)) + ')' : '') + '</button>');
+      else if (!pc.s || !known[lc(pc.s)]) spare.push('<button class="pill p-green" data-i="' + i + '">' + esc(p.name) + ': ' + esc(c) + '</button>');
     });
     $('spare').innerHTML = spare.join('') || '<span class="muted small">Nobody</span>';
     $('out').innerHTML = out.join('') || '<span class="muted small">Nobody</span>';
@@ -365,20 +367,21 @@ if (MODE === 'admin') (function () {
   }
 
   function personMenu(i) {
-    var p = D.staff[i], cell = String(D.grid[i][G] || '').trim(), spot = spotOf(cell), asked = cell.charAt(0) === '?';
-    var working = cell && cell.toUpperCase() !== 'OFF';
+    var p = D.staff[i], cell = String(D.grid[i][G] || '').trim(), pc = cellOf(i, G), spot = pc.s, asked = pc.a;
+    var working = pc.w;
     var sms = smsLink(p.phone, working ? msgFor(i, spot) : 'Hi ' + firstName(p.name) + ', ');
     var html = '<h2>' + esc(p.name) + '</h2><div class="muted small">' + esc(D.games[G].label) + ' · ' +
-      (working ? (asked ? 'Asked to work ' : 'Working ') + esc(spot) : (D.avail[i][G] === 'Y' ? 'Available, not scheduled' : (cell ? 'Off' : 'Not available'))) +
+      (working ? (asked ? 'Asked to work ' : 'Working ') + esc(spot || 'a spot not set yet') : (D.avail[i][G] === 'Y' && !cell ? 'Available, not scheduled' : (cell ? 'Off' : 'Not available'))) +
+      (pc.n ? ' · Note: ' + esc(pc.n) : '') +
       (p.home ? ' · Home spot: ' + esc(p.home) + (p.locked ? ' (only works here)' : '') : ' · Alternate') + '</div>' +
       (p.wont.length ? '<div class="small" style="margin-top:6px">Won\'t work: ' + esc(p.wont.join(', ')) + '</div>' : '') +
       (p.prefers.length ? '<div class="small">Prefers: ' + esc(p.prefers.join(', ')) + '</div>' : '') +
       '<div style="display:grid;gap:8px;margin-top:14px">';
-    if (asked) html += '<button class="btn primary" data-a="confirm">They said yes: confirm</button>';
+    if (asked && spot) html += '<button class="btn primary" data-a="confirm">They said yes: confirm</button>';
     if (working) html += '<button class="btn" data-a="drop">Dropped: find a replacement</button><button class="btn" data-a="remove">Remove from this game</button>';
     if (!working) html += '<label class="small">Put them in a spot</label><select id="mSpot"><option value="">Choose a spot</option>' +
       neededSpots().map(function (s) { return '<option>' + esc(s.name) + '</option>'; }).join('') + '</select><button class="btn primary" data-a="place">Assign</button>';
-    if (!working && cell.toUpperCase() !== 'OFF') html += '<button class="btn" data-a="off">Mark off</button>';
+    if (!working && !pc.off) html += '<button class="btn" data-a="off">Mark off</button>';
     if (sms) html += '<a class="btn" href="' + sms + '">Text ' + esc(firstName(p.name)) + ' (' + esc(p.phone) + ')</a>';
     html += '<button class="btn" id="mClose">Close</button></div>';
     openModal(html);
@@ -398,9 +401,9 @@ if (MODE === 'admin') (function () {
   /* ---- season grid ---- */
   $('fillAll').onclick = function () { if (confirm('Fill every open spot in every game? Shifts you already set stay as they are.')) call('apiAutoFill', PIN, 'all').then(apply); };
   function cls(i, g) {
-    var c = String(D.grid[i][g] || '').trim();
-    if (c.charAt(0) === '?') return 'blue';
-    if (c.toUpperCase() === 'OFF') return 'grey';
+    var c = String(D.grid[i][g] || '').trim(), pc = cellOf(i, g);
+    if (pc.a) return 'blue';
+    if (pc.off) return 'grey';
     if (c) return 'green';
     return D.avail[i][g] === 'N' ? 'red' : (D.avail[i][g] === 'Y' ? 'yellow' : '');
   }
@@ -410,7 +413,7 @@ if (MODE === 'admin') (function () {
     D.staff.forEach(function (p, i) {
       if (p.group !== lastGroup) { lastGroup = p.group; h += '<tr><td class="who grp">' + esc(p.group || 'Other') + '</td><td class="grp" colspan="' + D.games.length + '"></td></tr>'; }
       h += '<tr><td class="who" title="' + esc(p.home) + '">' + esc(p.name) + ' <span class="muted">' + D.counts[i] + '</span></td>' +
-        D.grid[i].map(function (c, g) { return '<td class="c ' + cls(i, g) + '" data-g="' + g + '" title="' + esc(c) + '">' + esc(spotOf(c)) + '</td>'; }).join('') + '</tr>';
+        D.grid[i].map(function (c, g) { return '<td class="c ' + cls(i, g) + '" data-g="' + g + '" title="' + esc(c) + '">' + esc(cellOf(i, g).s || spotOf(c)) + '</td>'; }).join('') + '</tr>';
     });
     $('grid').innerHTML = h + '</tbody>';
     $('grid').querySelectorAll('[data-g]').forEach(function (el) { el.onclick = function () { G = Number(el.dataset.g); show('game'); }; });
@@ -478,10 +481,11 @@ if (MODE === 'staff') (function () {
   function draw() {
     $('sHello').textContent = 'Hi ' + firstName(ME.name);
     $('sHome').textContent = ME.home ? 'Your home spot: ' + ME.home : 'You are an alternate, so you fill in wherever we need you.';
-    var shifts = ME.games.filter(function (g) { return g.shift && g.shift.toUpperCase() !== 'OFF'; });
+    var shifts = ME.games.filter(function (g) { return g.cell ? g.cell.w : (g.shift && g.shift.toUpperCase() !== 'OFF'); });
     $('sShifts').innerHTML = shifts.length ? shifts.map(function (g) {
-      var asked = g.shift.charAt(0) === '?';
-      return '<div class="shift"><b>' + esc(g.label) + '</b> &middot; ' + esc(spotOf(g.shift)) +
+      var asked = g.cell ? g.cell.a : g.shift.charAt(0) === '?';
+      var where = (g.cell && g.cell.s) || (g.cell ? 'Spot to be set' : spotOf(g.shift));
+      return '<div class="shift"><b>' + esc(g.label) + '</b> &middot; ' + esc(where) + (g.cell && g.cell.n ? ' <span class="muted small">(' + esc(g.cell.n) + ')</span>' : '') +
         (asked ? ' <span class="badge" style="background:var(--s-blue);color:var(--s-blue-ink)">Will asked you, please reply</span>' : '') +
         '<div class="muted small">Report ' + esc(g.report) + ' · First pitch ' + esc(g.pitch) + ' · ' + esc(g.promo) + '</div></div>';
     }).join('') : '<span class="muted small">No shifts yet. Will posts the schedule after everyone sends availability.</span>';

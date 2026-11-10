@@ -62,6 +62,80 @@ function isWorking_(cell) {
   return v !== '' && v.toUpperCase() !== CFG.OFF;
 }
 
+/* ---------- reading what's typed in a schedule cell ----------
+ * Will's 2026 sheets use free text in cells. This turns a cell into
+ * { w: working?, s: spot name ('' = working, spot not set), a: asked/tentative,
+ *   off: marked off, n: note, u: text that isn't a known spot }.
+ * Examples: "OFF", "Sick" -> off. "X" -> their home spot. "Satellite?" -> asked.
+ * "Conc. 6", "ConcBeer6" -> Conc. Beer 6. "IceCream(to7:30)" -> Ice Cream + note.
+ * "Start 7:30", "w/ Bud", "at 1pm" -> home spot + note. "Beer" (a role) -> working, spot not set.
+ */
+var OFF_WORDS = ['off', 'sick', 'n/a', 'na', 'no', 'out', 'not available', 'unavailable'];
+var SPOT_ALIASES = {
+  leine: 'leines', leinelodge: 'leines', captain: 'captainscorner', captaincorner: 'captainscorner',
+  capsstand: 'caps', dd1st: '1stbasedd', dd1stb: '1stbasedd', dd1stbase: '1stbasedd',
+  dd3rd: '3rdbasedd', dd3rdb: '3rdbasedd', dd3rdbase: '3rdbasedd', und: 'unddeck', undbeer: 'unddeck',
+  undbar: 'unddeck', surfside: 'surfsidepatio', suitesbar: 'suitebar', suiteserve: 'suiteserver',
+  suiteservers: 'suiteserver', picnicdeck: 'picnic'
+};
+var ROLE_WORDS = ['alternate', 'alternatemixer', 'beermixer', 'mixer', 'conc', 'suites', 'serve', 'server', 'bar', 'till', 'beer',
+  'dippindots', 'dd', 'intern', 'internhelper', 'job'];
+var NOTE_RE = /^(w\/|with\b|from\b|start|at\s*\d|\d{1,2}(:\d\d)?\s*(am|pm)?\b|late\b|early\b|leave|show up|arriv)/i;
+
+function cellKey_(s) { return String(s || '').toLowerCase().replace(/concessions?/g, 'conc').replace(/[^a-z0-9]/g, ''); }
+
+function spotIndex_(spots) {
+  var idx = { spots: {}, roles: {} };
+  spots.forEach(function (sp) {
+    idx.spots[cellKey_(sp.name)] = sp.name;
+    (sp.aka || []).forEach(function (a) { if (cellKey_(a)) idx.spots[cellKey_(a)] = sp.name; });
+    if (sp.role) idx.roles[cellKey_(sp.role)] = 1;
+  });
+  Object.keys(SPOT_ALIASES).forEach(function (a) {
+    var target = idx.spots[SPOT_ALIASES[a]];
+    if (target && !idx.spots[a]) idx.spots[a] = target;
+  });
+  // "Conc. 6" / "Till 7": the stand number only if exactly one Conc. Beer/Till spot has it
+  var byNum = {};
+  spots.forEach(function (sp) {
+    var m = cellKey_(sp.name).match(/^conc(beer|till)(\d+)$/);
+    if (m) { (byNum[m[2]] = byNum[m[2]] || []).push(sp.name); if (m[1] === 'till') idx.spots['till' + m[2]] = sp.name; }
+  });
+  Object.keys(byNum).forEach(function (n) { if (byNum[n].length === 1 && !idx.spots['conc' + n]) idx.spots['conc' + n] = byNum[n][0]; });
+  ROLE_WORDS.forEach(function (r) { idx.roles[r] = 1; });
+  return idx;
+}
+
+function parseCell_(cell, home, idx) {
+  var raw = String(cell || '').trim();
+  var r = { w: false, s: '', a: false, off: false, n: '', u: false };
+  if (!raw) return r;
+  var v = raw;
+  if (v.charAt(0) === '?') { r.a = true; v = v.slice(1).trim(); }
+  if (/\?\)?$/.test(v)) { r.a = true; v = v.replace(/\?(\)?)$/, '$1').trim(); }
+  if (!v) { r.n = raw; return r; }                       // a lone "?": not decided yet
+  if (OFF_WORDS.indexOf(v.toLowerCase()) >= 0 || /n\/a/i.test(v)) {
+    r.off = true; r.a = false; if (v.toUpperCase() !== CFG.OFF) r.n = v; return r;
+  }
+  r.w = true;
+  var k = cellKey_(v);
+  if (/^x\b/i.test(v)) { r.s = home || ''; r.n = v.replace(/^x\s*/i, '').replace(/^\((.*)\)$/, '$1'); return r; }
+  if (idx.spots[k]) { r.s = idx.spots[k]; return r; }
+  var best = '';
+  Object.keys(idx.spots).forEach(function (sk) { if (sk.length >= 4 && sk.length > best.length && k.indexOf(sk) === 0) best = sk; });
+  if (best) { r.s = idx.spots[best]; r.n = v; return r; }
+  if (NOTE_RE.test(v) || idx.roles[k]) { r.s = home || ''; r.n = v; return r; }
+  r.s = v; r.u = true; return r;
+}
+
+/** Parsed cell for staff i, game g. Cached per text so auto-fill stays fast. */
+function cellAt_(model, i, g) {
+  if (!model._idx) { model._idx = spotIndex_(model.spots); model._pc = {}; }
+  var raw = model.grid[i][g], home = model.staff[i].home || '';
+  var ck = home + '|' + raw;
+  return model._pc[ck] || (model._pc[ck] = parseCell_(raw, home, model._idx));
+}
+
 /**
  * model = {
  *   staff: [{name, group, home, locked, roles[], wont[], prefers[]}],
@@ -80,15 +154,17 @@ function neededSpots_(model, g) {
 }
 
 function seasonCounts_(model) {
-  return model.grid.map(function (row) {
-    return row.filter(isWorking_).length;
+  return model.grid.map(function (row, i) {
+    var n = 0;
+    for (var g = 0; g < row.length; g++) if (cellAt_(model, i, g).w) n++;
+    return n;
   });
 }
 
 function filledCount_(model, g, spotName) {
   var key = spotName.toLowerCase(), n = 0;
   for (var i = 0; i < model.staff.length; i++) {
-    if (spotOf_(model.grid[i][g]).toLowerCase() === key) n++;
+    if (cellAt_(model, i, g).s.toLowerCase() === key) n++;
   }
   return n;
 }
@@ -176,15 +252,16 @@ function problems_(model, gameLabels) {
     var need = {};
     neededSpots_(model, g).forEach(function (sp) { need[sp.name.toLowerCase()] = sp; });
     model.staff.forEach(function (p, i) {
-      var cell = model.grid[i][g];
-      if (!isWorking_(cell)) return;
-      var s = spotOf_(cell).toLowerCase();
+      var cell = model.grid[i][g], c = cellAt_(model, i, g);
+      if (!c.w) return;
+      var s = c.s.toLowerCase();
       var lbl = gameLabels[g] + ': ' + p.name;
       if (String(model.avail[i][g]).toUpperCase() === 'N') out.push(lbl + ' is scheduled but said they are not available.');
-      if (p.wont.indexOf(s) >= 0) out.push(lbl + ' is at ' + spotOf_(cell) + ', a spot they won\'t work.');
-      if (p.locked && s !== p.home.toLowerCase()) out.push(lbl + ' only works ' + p.home + ' but is at ' + spotOf_(cell) + '.');
+      if (!s) return;                                   // working, spot not set yet (e.g. "Beer")
+      if (p.wont.indexOf(s) >= 0) out.push(lbl + ' is at ' + c.s + ', a spot they won\'t work.');
+      if (p.locked && s !== p.home.toLowerCase()) out.push(lbl + ' only works ' + p.home + ' but is at ' + c.s + '.');
       if (!known[s]) out.push(lbl + ' has "' + cell + '", which is not on the Spots tab.');
-      else if (known[s].deck && !need[s]) out.push(lbl + ' is at ' + spotOf_(cell) + ', but that deck is not sold for this game.');
+      else if (known[s].deck && !need[s]) out.push(lbl + ' is at ' + c.s + ', but that deck is not sold for this game.');
     });
     Object.keys(need).forEach(function (k) {
       var n = filledCount_(model, g, need[k].name);
@@ -216,10 +293,11 @@ function load_() {
 
   var spotSh = ss.getSheetByName('Spots');
   var lastSpot = lastRowIn_(spotSh, 1);
-  var spots = (lastSpot >= 2 ? spotSh.getRange(2, 1, lastSpot - 1, 5).getValues() : [])
+  var spotCols = Math.min(6, spotSh.getMaxColumns());
+  var spots = (lastSpot >= 2 ? spotSh.getRange(2, 1, lastSpot - 1, spotCols).getValues() : [])
     .filter(function (r) { return String(r[0]).trim(); })
     .map(function (r) {
-      return { name: String(r[0]).trim(), role: String(r[2]).trim(), need: Number(r[3]) || 1, deck: /deck/i.test(String(r[4])) };
+      return { name: String(r[0]).trim(), role: String(r[2]).trim(), need: Number(r[3]) || 1, deck: /deck/i.test(String(r[4])), aka: splitRaw_(r[5]) };
     });
 
   var gamesSh = ss.getSheetByName('Games');
@@ -320,8 +398,8 @@ function menuFindReplacement() { runSafely_(function () {
   if (sh.getName() !== 'Schedule' || g < 0 || g >= m.nGames || i < 0 || i >= m.staff.length) {
     throw new Error('Select the cell of the person who dropped (on the Schedule tab).');
   }
-  var spotName = spotOf_(m.grid[i][g]);
-  if (!spotName || spotName.toUpperCase() === CFG.OFF) {
+  var spotName = cellAt_(m, i, g).s;
+  if (!spotName) {
     var resp = ui.prompt('Which spot needs filling?', 'Type the spot name exactly as it appears on the Spots tab.', ui.ButtonSet.OK_CANCEL);
     if (resp.getSelectedButton() !== ui.Button.OK) return;
     spotName = resp.getResponseText().trim();
@@ -330,7 +408,7 @@ function menuFindReplacement() { runSafely_(function () {
   if (!sp) throw new Error('"' + spotName + '" is not on the Spots tab.');
 
   var dropped = m.staff[i];
-  var hadIt = spotOf_(m.grid[i][g]).toLowerCase() === sp.name.toLowerCase();
+  var hadIt = cellAt_(m, i, g).s.toLowerCase() === sp.name.toLowerCase();
   if (hadIt) { m.grid[i][g] = ''; m.avail[i][g] = 'N'; }
   var c = candidates_(m, g, sp).slice(0, 9);
   if (!c.length) { ui.alert('Nobody is free for ' + sp.name + ' on ' + m.labels[g] + '.', 'Everyone who can work it is either unavailable, already placed, or has it as a no-go spot.', ui.ButtonSet.OK); return; }
@@ -360,6 +438,7 @@ function menuConfirmSelected() { runSafely_(function () {
   v = v.map(function (row) { return row.map(function (x) {
     var s = String(x);
     if (s.indexOf(CFG.ASKED_PREFIX.trim()) === 0) { n++; return spotOf_(s); }
+    if (/\?$/.test(s.trim()) && s.trim().length > 1) { n++; return s.trim().replace(/\?+$/, '').trim(); }
     return x;
   }); });
   r.setValues(v);
@@ -512,6 +591,7 @@ function snapshot_(m) {
         roles: p.rawRoles, wont: p.rawWont, prefers: p.rawPrefers };
     }),
     grid: m.grid, avail: m.avail, decks: m.decks,
+    cells: m.grid.map(function (row, i) { return row.map(function (x, g) { return cellAt_(m, i, g); }); }),
     counts: seasonCounts_(m)
   };
 }
@@ -544,7 +624,7 @@ function apiSetCell(pin, i, g, value) { checkPin_(pin); return withLock_(functio
 /** Someone dropped: clear their cell, mark them unavailable, return who could cover. */
 function apiDrop(pin, i, g) { checkPin_(pin); return withLock_(function () {
   var m = load_(); i = Number(i); g = Number(g);
-  var spot = spotOf_(m.grid[i][g]);
+  var spot = cellAt_(m, i, g).s;
   m.grid[i][g] = ''; m.avail[i][g] = 'N';
   writeCell_(i, g, '');
   ss_().getSheetByName('Availability').getRange(CFG.AVAIL_FIRST_ROW + i, CFG.FIRST_GAME_COL + g).setValue('N');
@@ -608,7 +688,7 @@ function apiStaffMe(name, code) {
     spots: uniq_(m.spots.map(function (s) { return s.name; })),
     wont: p.wont, prefers: p.prefers,
     games: m.gameRows.map(function (r, g) {
-      return { label: m.labels[g], pitch: r[1], report: r[2], promo: r[3], avail: m.avail[i][g], shift: m.grid[i][g] };
+      return { label: m.labels[g], pitch: r[1], report: r[2], promo: r[3], avail: m.avail[i][g], shift: m.grid[i][g], cell: cellAt_(m, i, g) };
     })
   };
 }
@@ -621,4 +701,4 @@ function apiStaffSave(name, code, avail, wont, prefers) { return withLock_(funct
   return apiStaffMe(name, code);
 }); }
 
-/*NODE*/if (typeof module !== 'undefined') module.exports = { autoFillGame_: autoFillGame_, candidates_: candidates_, problems_: problems_, seasonCounts_: seasonCounts_, openSpots_: openSpots_, splitList_: splitList_ };
+/*NODE*/if (typeof module !== 'undefined') module.exports = { autoFillGame_: autoFillGame_, candidates_: candidates_, problems_: problems_, seasonCounts_: seasonCounts_, openSpots_: openSpots_, splitList_: splitList_, parseCell_: parseCell_, spotIndex_: spotIndex_, cellAt_: cellAt_ };
