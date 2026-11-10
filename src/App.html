@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --red: #b3112b; --red-dark: #7f1d1d; --ink: #1f2328; --muted: #5f6b76; --line: #e3e6ea;
+    --bg: #f6f7f9; --card: #ffffff;
+    --s-green: #cfe8c3; --s-green-ink: #27500f; --s-yellow: #fff1b8; --s-yellow-ink: #6b5200;
+    --s-red: #f6c9c9; --s-red-ink: #8a1414; --s-blue: #cfe2f6; --s-blue-ink: #0f3d6b; --s-grey: #e5e7ea;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); background: var(--bg); }
+  header.top { background: var(--red); color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+  header.top h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: .2px; }
+  nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+  nav button { background: transparent; color: #fff; border: 0; padding: 7px 12px; border-radius: 6px; font: inherit; cursor: pointer; opacity: .85; }
+  nav button.on { background: rgba(255,255,255,.18); opacity: 1; font-weight: 600; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 0 0 8px; }
+  button.btn, a.btn { font: inherit; border: 1px solid var(--line); background: #fff; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--ink); text-decoration: none; display: inline-block; }
+  button.btn.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  select, input[type=text], input[type=password], input[type=tel] { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; max-width: 100%; }
+  .gamehead select { min-width: 0; flex: 1; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .b-ok { background: var(--s-green); color: var(--s-green-ink); }
+  .b-bad { background: var(--s-red); color: var(--s-red-ink); }
+  .areas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .spot { display: flex; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); align-items: flex-start; }
+  .spot:first-of-type { border-top: 0; }
+  .spot .name { width: 120px; flex: none; font-weight: 600; font-size: 14px; padding-top: 3px; }
+  .seats { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+  .pill { border: 0; font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .p-green { background: var(--s-green); color: var(--s-green-ink); }
+  .p-blue { background: var(--s-blue); color: var(--s-blue-ink); }
+  .p-yellow { background: var(--s-yellow); color: var(--s-yellow-ink); }
+  .p-open { background: #fff; color: var(--s-red-ink); border: 1.5px dashed #d77; font-weight: 600; }
+  .p-grey { background: var(--s-grey); color: var(--muted); }
+  .deck { display: flex; gap: 10px; align-items: center; padding: 6px 0; flex-wrap: wrap; }
+  .deck b { width: 120px; }
+  .grid-wrap { overflow: auto; max-height: 75vh; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  table.grid { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+  table.grid th, table.grid td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 3px 5px; white-space: nowrap; }
+  table.grid th { position: sticky; top: 0; background: #fafafa; z-index: 2; cursor: pointer; font-weight: 600; }
+  table.grid td.who, table.grid th.who { position: sticky; left: 0; background: #fff; z-index: 1; text-align: left; min-width: 140px; }
+  table.grid th.who { z-index: 3; }
+  table.grid td.c { min-width: 62px; max-width: 62px; overflow: hidden; text-overflow: ellipsis; cursor: pointer; text-align: center; }
+  td.green { background: var(--s-green); } td.yellow { background: var(--s-yellow); } td.red { background: var(--s-red); }
+  td.blue { background: var(--s-blue); } td.grey { background: var(--s-grey); }
+  td.grp { background: #f0f1f3 !important; font-weight: 700; color: var(--muted); }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; margin-bottom: 10px; }
+  .legend span { padding: 2px 8px; border-radius: 4px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.list td, table.list th { text-align: left; padding: 7px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  table.list tr.click:hover { background: #fafafa; cursor: pointer; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: flex-end; justify-content: center; z-index: 20; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #fff; width: 100%; max-width: 520px; max-height: 85vh; overflow: auto; border-radius: 14px 14px 0 0; padding: 16px; }
+  @media (min-width: 700px) { .modal-bg { align-items: center; } .modal { border-radius: 14px; } }
+  .cand { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .cand .who { flex: 1; min-width: 160px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: #222; color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 14px; display: none; z-index: 30; max-width: 90vw; }
+  .loading { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent, #fff, transparent); animation: ld 1s infinite; display: none; z-index: 40; }
+  @keyframes ld { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  .gamechips { display: flex; flex-direction: column; gap: 6px; }
+  .gchip { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line); background: #fff; cursor: pointer; font: inherit; text-align: left; }
+  .gchip.y { background: var(--s-green); border-color: #a9d398; }
+  .gchip.n { background: #fff; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: #fff; padding: 5px 10px; border-radius: 999px; font: inherit; font-size: 13px; cursor: pointer; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .chip.no.on { background: var(--s-red-ink); border-color: var(--s-red-ink); }
+  .shift { padding: 10px 0; border-top: 1px solid var(--line); }
+  .shift:first-child { border-top: 0; }
+  .err { color: var(--s-red-ink); margin-top: 8px; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div class="loading" id="loading"></div>
+<div class="toast" id="toast"></div>
+
+<? if (mode === 'admin') { ?>
+<header class="top">
+  <h1>RedHawks F&amp;B Scheduler</h1>
+  <nav id="nav" class="hide">
+    <button data-v="game" class="on">Game day</button>
+    <button data-v="season">Season</button>
+    <button data-v="staff">Staff</button>
+    <button data-v="problems">Problems</button>
+  </nav>
+</header>
+<main>
+  <div id="login" class="card" style="max-width:380px;margin:40px auto">
+    <h2>Manager sign-in</h2>
+    <div class="row"><input id="pin" type="password" placeholder="PIN" class="grow"><button class="btn primary" id="pinGo">Open</button></div>
+    <div id="pinErr" class="err"></div>
+  </div>
+
+  <section id="v-game" class="hide">
+    <div class="card">
+      <div class="row gamehead">
+        <button class="btn" id="prevG" aria-label="Previous game">&#9664;</button>
+        <select id="gameSel"></select>
+        <button class="btn" id="nextG" aria-label="Next game">&#9654;</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="grow"><div id="gInfo"></div><div id="gPromo" class="muted small"></div></div>
+        <span id="gStatus"></span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="fillG">Auto-fill this game</button>
+        <button class="btn" id="clearG">Clear game</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Party decks</h3>
+      <div id="decks"></div>
+    </div>
+    <div class="areas" id="areas"></div>
+    <div class="card" style="margin-top:14px">
+      <h3>Available, not scheduled</h3>
+      <div class="seats" id="spare"></div>
+      <h3 style="margin-top:14px">Off or not available</h3>
+      <div class="seats" id="out"></div>
+    </div>
+  </section>
+
+  <section id="v-season" class="hide">
+    <div class="card">
+      <div class="row">
+        <div class="grow"><h2 style="margin:0">Whole season</h2><div class="muted small">Tap a date to open that game.</div></div>
+        <button class="btn primary" id="fillAll">Auto-fill every game</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="p-green">Scheduled</span><span class="p-yellow">Available, not scheduled</span>
+      <span style="background:var(--s-red)">Not available</span><span class="p-blue">Asked</span><span class="p-grey">Off</span>
+    </div>
+    <div class="grid-wrap"><table class="grid" id="grid"></table></div>
+  </section>
+
+  <section id="v-staff" class="hide">
+    <div class="card">
+      <h2>Staff phone page</h2>
+      <div class="muted small">Send this link to staff. They pick their name, enter the last 4 digits of their phone, and fill in their availability.</div>
+      <div class="row" style="margin-top:8px"><input type="text" id="staffLink" class="grow" readonly><button class="btn" id="copyLink">Copy</button></div>
+    </div>
+    <div class="card"><table class="list" id="staffTbl"></table></div>
+  </section>
+
+  <section id="v-problems" class="hide">
+    <div class="card">
+      <div class="row"><h2 class="grow" style="margin:0">Problems</h2><button class="btn" id="runProb">Check again</button></div>
+      <div class="muted small">Looks for people scheduled when they said they can't work, in a spot they won't work, outside a stand they're locked to, or stands with too many people.</div>
+      <div id="probList" style="margin-top:10px"></div>
+    </div>
+  </section>
+</main>
+
+<? } else { ?>
+<header class="top"><h1>RedHawks Food &amp; Beverage</h1></header>
+<main style="max-width:560px">
+  <div id="sLogin" class="card">
+    <h2>Find your schedule</h2>
+    <div style="display:grid;gap:10px">
+      <select id="sName"><option value="">Choose your name</option></select>
+      <input id="sCode" type="tel" inputmode="numeric" maxlength="4" placeholder="Last 4 digits of your phone">
+      <button class="btn primary" id="sGo">Continue</button>
+    </div>
+    <div id="sErr" class="err"></div>
+  </div>
+  <div id="sMain" class="hide">
+    <div class="card">
+      <div class="row"><h2 class="grow" style="margin:0" id="sHello"></h2><button class="btn" id="sOut">Not you?</button></div>
+      <div class="muted small" id="sHome"></div>
+    </div>
+    <div class="card"><h3>My shifts</h3><div id="sShifts"></div></div>
+    <div class="card">
+      <h3>Which home games can you work?</h3>
+      <div class="row small" style="margin-bottom:8px"><button class="btn" id="sAll">I can work all</button><button class="btn" id="sNone">Clear all</button></div>
+      <div class="gamechips" id="sGames"></div>
+    </div>
+    <div class="card">
+      <h3>Spots you'd like to work</h3><div class="chips" id="sPref"></div>
+      <h3 style="margin-top:14px">Spots you won't work</h3><div class="chips" id="sWont"></div>
+    </div>
+    <button class="btn primary" id="sSave" style="width:100%;padding:12px;margin-bottom:30px">Save my availability</button>
+  </div>
+</main>
+<? } ?>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+
+<script>
+var MODE = <?= JSON.stringify(mode) ?>;
+var APP_URL = <?= JSON.stringify(appUrl || '') ?>;
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
+function toast(msg) { var t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(function () { t.style.display = 'none'; }, 3500); }
+var busy = 0;
+function call(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  busy++; $('loading').style.display = 'block';
+  return new Promise(function (res, rej) {
+    var r = google.script.run.withSuccessHandler(function (v) { if (!--busy) $('loading').style.display = 'none'; res(v); })
+      .withFailureHandler(function (e) { if (!--busy) $('loading').style.display = 'none'; toast(e.message || String(e)); rej(e); });
+    r[fn].apply(r, args);
+  });
+}
+function openModal(html) { $('modal').innerHTML = html; $('modalBg').classList.add('show'); }
+function closeModal() { $('modalBg').classList.remove('show'); }
+$('modalBg').addEventListener('click', function (e) { if (e.target === $('modalBg')) closeModal(); });
+function firstName(n) { return String(n).split(' ')[0]; }
+function smsLink(phone, body) { var d = String(phone || '').replace(/[^\d+]/g, ''); return d ? 'sms:' + d + '?&body=' + encodeURIComponent(body) : ''; }
+function spotOf(cell) { var v = String(cell || '').trim(); return v.charAt(0) === '?' ? v.slice(1).trim() : v; }
+function lc(s) { return String(s || '').toLowerCase(); }
+
+/* ====================== MANAGER ====================== */
+if (MODE === 'admin') (function () {
+  var PIN = store('rh_pin') || '';
+  var D = null, G = 0, VIEW = 'game';
+
+  function signIn(pin) {
+    return call('apiLoad', pin).then(function (d) {
+      PIN = pin; store('rh_pin', pin); D = d;
+      $('login').classList.add('hide'); $('nav').classList.remove('hide');
+      G = 0; buildGameSel(); show('game');
+    }, function (e) { $('pinErr').textContent = e.message || 'Could not sign in.'; store('rh_pin', null); });
+  }
+  $('pinGo').onclick = function () { signIn($('pin').value.trim()); };
+  $('pin').onkeydown = function (e) { if (e.key === 'Enter') signIn($('pin').value.trim()); };
+  if (PIN) signIn(PIN);
+
+  document.querySelectorAll('#nav button').forEach(function (b) { b.onclick = function () { show(b.dataset.v); }; });
+  function show(v) {
+    VIEW = v;
+    document.querySelectorAll('#nav button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
+    ['game', 'season', 'staff', 'problems'].forEach(function (k) { $('v-' + k).classList.toggle('hide', k !== v); });
+    render();
+  }
+  function render() {
+    if (!D) return;
+    if (VIEW === 'game') renderGame();
+    if (VIEW === 'season') renderSeason();
+    if (VIEW === 'staff') renderStaff();
+    if (VIEW === 'problems') runProblems();
+  }
+  function apply(d) { D = d; if (d && d.message) toast(d.message); render(); return d; }
+
+  /* ---- game day ---- */
+  function buildGameSel() {
+    $('gameSel').innerHTML = D.games.map(function (g, i) { return '<option value="' + i + '">' + esc(g.label + '  ' + g.promo) + '</option>'; }).join('');
+  }
+  $('gameSel').onchange = function () { G = Number(this.value); renderGame(); };
+  $('prevG').onclick = function () { if (G > 0) { G--; renderGame(); } };
+  $('nextG').onclick = function () { if (G < D.games.length - 1) { G++; renderGame(); } };
+  $('fillG').onclick = function () { call('apiAutoFill', PIN, G).then(apply); };
+  $('clearG').onclick = function () { if (confirm('Clear every shift for ' + D.games[G].label + '? Party decks stay.')) call('apiClearGame', PIN, G).then(apply); };
+
+  function deckSold(spot) { var row = D.decks[lc(spot.name)]; return row && String(row[G] || '').trim(); }
+  function neededSpots() { return D.spots.filter(function (s) { return !s.deck || deckSold(s); }); }
+  function whoIn(spotName) {
+    var out = [];
+    D.staff.forEach(function (p, i) { if (lc(spotOf(D.grid[i][G])) === lc(spotName)) out.push(i); });
+    return out;
+  }
+
+  function renderGame() {
+    $('gameSel').value = G;
+    var g = D.games[G];
+    $('gInfo').innerHTML = '<b>' + esc(g.label) + '</b> &middot; First pitch ' + esc(g.pitch) + ' &middot; Staff report ' + esc(g.report);
+    $('gPromo').textContent = g.promo;
+    var need = neededSpots(), seats = 0, filled = 0;
+    need.forEach(function (s) { seats += s.need; filled += Math.min(s.need, whoIn(s.name).length); });
+    var open = seats - filled;
+    $('gStatus').innerHTML = open ? '<span class="badge b-bad">' + open + ' open of ' + seats + '</span>' : '<span class="badge b-ok">All ' + seats + ' filled</span>';
+
+    $('decks').innerHTML = D.spots.filter(function (s) { return s.deck; }).map(function (s) {
+      var sold = deckSold(s);
+      return '<div class="deck"><b>' + esc(s.name) + '</b>' +
+        (sold ? '<span class="badge b-ok">Sold: ' + esc(sold) + '</span><button class="btn small" data-deck="' + esc(s.name) + '" data-act="unsell">Not sold</button>'
+              : '<span class="muted small">Not sold</span><button class="btn small" data-deck="' + esc(s.name) + '" data-act="sell">Deck sold</button>') +
+        '<span class="muted small">' + s.need + ' pourer' + (s.need > 1 ? 's' : '') + '</span></div>';
+    }).join('');
+    $('decks').querySelectorAll('button').forEach(function (b) {
+      b.onclick = function () {
+        if (b.dataset.act === 'sell') {
+          var who = prompt('Who bought ' + b.dataset.deck + '? (group name)', 'Group');
+          if (who) call('apiSetDeck', PIN, b.dataset.deck, G, who).then(apply).then(function () {
+            if (confirm(b.dataset.deck + ' is sold. Fill its pourers now?')) call('apiAutoFill', PIN, G).then(apply);
+          });
+        } else if (confirm('Mark ' + b.dataset.deck + ' as not sold? Anyone scheduled there stays until you move them.')) {
+          call('apiSetDeck', PIN, b.dataset.deck, G, '').then(apply);
+        }
+      };
+    });
+
+    var areas = {}, order = [];
+    need.forEach(function (s) { var a = s.area || 'Other'; if (!areas[a]) { areas[a] = []; order.push(a); } areas[a].push(s); });
+    $('areas').innerHTML = order.map(function (a) {
+      return '<div class="card" style="margin:0"><h3>' + esc(a) + '</h3>' + areas[a].map(function (s) {
+        var ppl = whoIn(s.name), html = '';
+        ppl.forEach(function (i) {
+          var asked = String(D.grid[i][G]).trim().charAt(0) === '?';
+          html += '<button class="pill ' + (asked ? 'p-blue' : 'p-green') + '" data-i="' + i + '">' + esc(D.staff[i].name) + (asked ? ' (asked)' : '') + '</button>';
+        });
+        for (var k = ppl.length; k < s.need; k++) html += '<button class="pill p-open" data-open="' + esc(s.name) + '">Open</button>';
+        return '<div class="spot"><div class="name">' + esc(s.name) + '</div><div class="seats">' + html + '</div></div>';
+      }).join('') + '</div>';
+    }).join('');
+
+    var spare = [], out = [], known = {};
+    D.spots.forEach(function (s) { known[lc(s.name)] = 1; });
+    D.staff.forEach(function (p, i) {
+      var c = String(D.grid[i][G] || '').trim();
+      if (!c && D.avail[i][G] === 'Y') spare.push('<button class="pill p-yellow" data-i="' + i + '">' + esc(p.name) + '</button>');
+      else if (!c || c.toUpperCase() === 'OFF') out.push('<button class="pill p-grey" data-i="' + i + '">' + esc(p.name) + (c ? ' (off)' : '') + '</button>');
+      else if (!known[lc(spotOf(c))]) out.push('<button class="pill p-grey" data-i="' + i + '">' + esc(p.name) + ': ' + esc(c) + '</button>');
+    });
+    $('spare').innerHTML = spare.join('') || '<span class="muted small">Nobody</span>';
+    $('out').innerHTML = out.join('') || '<span class="muted small">Nobody</span>';
+
+    document.querySelectorAll('#v-game [data-open]').forEach(function (b) { b.onclick = function () { pickFor(b.dataset.open); }; });
+    document.querySelectorAll('#v-game [data-i]').forEach(function (b) { b.onclick = function () { personMenu(Number(b.dataset.i)); }; });
+  }
+
+  function msgFor(i, spot) {
+    var g = D.games[G];
+    return 'Hi ' + firstName(D.staff[i].name) + ', can you work ' + spot + ' at the RedHawks game ' + g.label + '? Report at ' + g.report + '. Thanks! - Will';
+  }
+
+  function pickFor(spot, note) {
+    call('apiCandidates', PIN, G, spot).then(function (list) {
+      var g = D.games[G];
+      var html = '<h2>Who can cover ' + esc(spot) + '?</h2><div class="muted small">' + esc(g.label + ' · report ' + g.report) + (note ? ' · ' + esc(note) : '') + '</div>';
+      if (!list.length) html += '<p>Nobody is free. Everyone who can work it is unavailable, already placed, or has it as a no-go spot.</p>';
+      html += list.map(function (c) {
+        var sms = smsLink(c.phone, msgFor(c.idx, spot));
+        return '<div class="cand"><div class="who"><b>' + esc(c.name) + '</b><div class="muted small">' + esc(c.why) + '</div></div>' +
+          (sms ? '<a class="btn" href="' + sms + '" data-ask="' + c.idx + '">Text &amp; ask</a>' : '<button class="btn" data-ask="' + c.idx + '">Ask</button>') +
+          '<button class="btn primary" data-put="' + c.idx + '">Assign</button></div>';
+      }).join('');
+      html += '<div class="row" style="margin-top:12px"><button class="btn grow" id="mClose">Close</button></div>';
+      openModal(html);
+      $('mClose').onclick = closeModal;
+      $('modal').querySelectorAll('[data-ask]').forEach(function (b) {
+        b.addEventListener('click', function () { var i = Number(b.dataset.ask); setTimeout(function () { closeModal(); call('apiSetCell', PIN, i, G, '? ' + spot).then(apply); }, 50); });
+      });
+      $('modal').querySelectorAll('[data-put]').forEach(function (b) {
+        b.onclick = function () { closeModal(); call('apiSetCell', PIN, Number(b.dataset.put), G, spot).then(apply); };
+      });
+    });
+  }
+
+  function personMenu(i) {
+    var p = D.staff[i], cell = String(D.grid[i][G] || '').trim(), spot = spotOf(cell), asked = cell.charAt(0) === '?';
+    var working = cell && cell.toUpperCase() !== 'OFF';
+    var sms = smsLink(p.phone, working ? msgFor(i, spot) : 'Hi ' + firstName(p.name) + ', ');
+    var html = '<h2>' + esc(p.name) + '</h2><div class="muted small">' + esc(D.games[G].label) + ' · ' +
+      (working ? (asked ? 'Asked to work ' : 'Working ') + esc(spot) : (D.avail[i][G] === 'Y' ? 'Available, not scheduled' : (cell ? 'Off' : 'Not available'))) +
+      (p.home ? ' · Home spot: ' + esc(p.home) + (p.locked ? ' (only works here)' : '') : ' · Alternate') + '</div>' +
+      (p.wont.length ? '<div class="small" style="margin-top:6px">Won\'t work: ' + esc(p.wont.join(', ')) + '</div>' : '') +
+      (p.prefers.length ? '<div class="small">Prefers: ' + esc(p.prefers.join(', ')) + '</div>' : '') +
+      '<div style="display:grid;gap:8px;margin-top:14px">';
+    if (asked) html += '<button class="btn primary" data-a="confirm">They said yes: confirm</button>';
+    if (working) html += '<button class="btn" data-a="drop">Dropped: find a replacement</button><button class="btn" data-a="remove">Remove from this game</button>';
+    if (!working) html += '<label class="small">Put them in a spot</label><select id="mSpot"><option value="">Choose a spot</option>' +
+      neededSpots().map(function (s) { return '<option>' + esc(s.name) + '</option>'; }).join('') + '</select><button class="btn primary" data-a="place">Assign</button>';
+    if (!working && cell.toUpperCase() !== 'OFF') html += '<button class="btn" data-a="off">Mark off</button>';
+    if (sms) html += '<a class="btn" href="' + sms + '">Text ' + esc(firstName(p.name)) + ' (' + esc(p.phone) + ')</a>';
+    html += '<button class="btn" id="mClose">Close</button></div>';
+    openModal(html);
+    $('mClose').onclick = closeModal;
+    $('modal').querySelectorAll('[data-a]').forEach(function (b) {
+      b.onclick = function () {
+        var a = b.dataset.a;
+        if (a === 'confirm') { closeModal(); call('apiSetCell', PIN, i, G, spot).then(apply); }
+        if (a === 'remove') { closeModal(); call('apiSetCell', PIN, i, G, '').then(apply); }
+        if (a === 'off') { closeModal(); call('apiSetCell', PIN, i, G, 'OFF').then(apply); }
+        if (a === 'place') { var s = $('mSpot').value; if (!s) return; closeModal(); call('apiSetCell', PIN, i, G, s).then(apply); }
+        if (a === 'drop') { closeModal(); call('apiDrop', PIN, i, G).then(apply).then(function (d) { pickFor(d.droppedSpot, p.name + ' dropped'); }); }
+      };
+    });
+  }
+
+  /* ---- season grid ---- */
+  $('fillAll').onclick = function () { if (confirm('Fill every open spot in every game? Shifts you already set stay as they are.')) call('apiAutoFill', PIN, 'all').then(apply); };
+  function cls(i, g) {
+    var c = String(D.grid[i][g] || '').trim();
+    if (c.charAt(0) === '?') return 'blue';
+    if (c.toUpperCase() === 'OFF') return 'grey';
+    if (c) return 'green';
+    return D.avail[i][g] === 'N' ? 'red' : (D.avail[i][g] === 'Y' ? 'yellow' : '');
+  }
+  function renderSeason() {
+    var h = '<thead><tr><th class="who">Name</th>' + D.games.map(function (g, k) { return '<th data-g="' + k + '" title="' + esc(g.promo) + '">' + esc(g.label) + '</th>'; }).join('') + '</tr></thead><tbody>';
+    var lastGroup = null;
+    D.staff.forEach(function (p, i) {
+      if (p.group !== lastGroup) { lastGroup = p.group; h += '<tr><td class="who grp">' + esc(p.group || 'Other') + '</td><td class="grp" colspan="' + D.games.length + '"></td></tr>'; }
+      h += '<tr><td class="who" title="' + esc(p.home) + '">' + esc(p.name) + ' <span class="muted">' + D.counts[i] + '</span></td>' +
+        D.grid[i].map(function (c, g) { return '<td class="c ' + cls(i, g) + '" data-g="' + g + '" title="' + esc(c) + '">' + esc(spotOf(c)) + '</td>'; }).join('') + '</tr>';
+    });
+    $('grid').innerHTML = h + '</tbody>';
+    $('grid').querySelectorAll('[data-g]').forEach(function (el) { el.onclick = function () { G = Number(el.dataset.g); show('game'); }; });
+  }
+
+  /* ---- staff ---- */
+  function renderStaff() {
+    $('staffLink').value = APP_URL ? APP_URL + '?page=staff' : '(deploy the web app to get the link)';
+    $('copyLink').onclick = function () { $('staffLink').select(); try { document.execCommand('copy'); toast('Copied'); } catch (e) {} };
+    var h = '<tr><th>Name</th><th>Home spot</th><th>Can work</th><th>Won\'t work</th><th>Prefers</th><th>Games</th></tr>', last = null;
+    D.staff.forEach(function (p, i) {
+      if (p.group !== last) { last = p.group; h += '<tr><td colspan="6" style="background:#f6f7f9;font-weight:700" class="muted">' + esc(p.group || 'Other') + '</td></tr>'; }
+      h += '<tr class="click" data-i="' + i + '"><td><b>' + esc(p.name) + '</b><div class="muted small">' + esc(p.phone) + '</div></td><td>' + esc(p.home || '-') +
+        (p.locked ? ' <span class="badge b-ok">only here</span>' : '') + '</td><td class="small">' + esc(p.roles.join(', ')) + '</td><td class="small">' + esc(p.wont.join(', ')) +
+        '</td><td class="small">' + esc(p.prefers.join(', ')) + '</td><td>' + D.counts[i] + '</td></tr>';
+    });
+    $('staffTbl').innerHTML = h;
+    $('staffTbl').querySelectorAll('tr.click').forEach(function (tr) { tr.onclick = function () { editStaff(Number(tr.dataset.i)); }; });
+  }
+  function editStaff(i) {
+    var p = D.staff[i];
+    var spotOpts = '<option value="">None (alternate)</option>' + D.spots.map(function (s) { return '<option' + (lc(s.name) === lc(p.home) ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('');
+    openModal('<h2>' + esc(p.name) + '</h2><div style="display:grid;gap:10px">' +
+      '<label class="small">Home spot<br><select id="eHome" style="width:100%">' + spotOpts + '</select></label>' +
+      '<label class="small"><input type="checkbox" id="eLocked"' + (p.locked ? ' checked' : '') + '> Only works their home spot (grandfathered)</label>' +
+      '<label class="small">Can work (roles, comma separated)<br><input type="text" id="eRoles" style="width:100%" value="' + esc(p.roles.join(', ')) + '"></label>' +
+      '<label class="small">Won\'t work (spots)<br><input type="text" id="eWont" style="width:100%" value="' + esc(p.wont.join(', ')) + '"></label>' +
+      '<label class="small">Prefers (spots)<br><input type="text" id="ePref" style="width:100%" value="' + esc(p.prefers.join(', ')) + '"></label>' +
+      '<label class="small">Phone<br><input type="tel" id="ePhone" style="width:100%" value="' + esc(p.phone) + '"></label>' +
+      '<div class="row"><button class="btn grow" id="mClose">Cancel</button><button class="btn primary grow" id="eSave">Save</button></div></div>');
+    $('mClose').onclick = closeModal;
+    $('eSave').onclick = function () {
+      var f = { home: $('eHome').value, locked: $('eLocked').checked, roles: $('eRoles').value, wont: $('eWont').value, prefers: $('ePref').value, phone: $('ePhone').value };
+      closeModal(); call('apiSaveStaff', PIN, i, f).then(apply).then(function () { toast('Saved'); });
+    };
+  }
+
+  /* ---- problems ---- */
+  $('runProb').onclick = runProblems;
+  function runProblems() {
+    $('probList').innerHTML = '<span class="muted small">Checking...</span>';
+    call('apiProblems', PIN).then(function (list) {
+      $('probList').innerHTML = list.length ? '<ul>' + list.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '<p class="badge b-ok">No problems found</p>';
+    });
+  }
+})();
+
+/* ====================== STAFF PHONE PAGE ====================== */
+if (MODE === 'staff') (function () {
+  var ME = null, NAME = store('rh_name') || '', CODE = store('rh_code') || '';
+  call('apiStaffNames').then(function (names) {
+    $('sName').innerHTML += names.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('');
+    if (NAME) { $('sName').value = NAME; $('sCode').value = CODE; go(); }
+  });
+  $('sGo').onclick = go;
+  function go() {
+    var n = $('sName').value, c = $('sCode').value.trim();
+    if (!n) { $('sErr').textContent = 'Choose your name first.'; return; }
+    call('apiStaffMe', n, c).then(function (me) {
+      NAME = n; CODE = c; store('rh_name', n); store('rh_code', c); ME = me;
+      $('sLogin').classList.add('hide'); $('sMain').classList.remove('hide'); draw();
+    }, function (e) { $('sErr').textContent = e.message; });
+  }
+  $('sOut').onclick = function () { store('rh_name', null); store('rh_code', null); location.reload(); };
+  function draw() {
+    $('sHello').textContent = 'Hi ' + firstName(ME.name);
+    $('sHome').textContent = ME.home ? 'Your home spot: ' + ME.home : 'You are an alternate, so you fill in wherever we need you.';
+    var shifts = ME.games.filter(function (g) { return g.shift && g.shift.toUpperCase() !== 'OFF'; });
+    $('sShifts').innerHTML = shifts.length ? shifts.map(function (g) {
+      var asked = g.shift.charAt(0) === '?';
+      return '<div class="shift"><b>' + esc(g.label) + '</b> &middot; ' + esc(spotOf(g.shift)) +
+        (asked ? ' <span class="badge" style="background:var(--s-blue);color:var(--s-blue-ink)">Will asked you, please reply</span>' : '') +
+        '<div class="muted small">Report ' + esc(g.report) + ' · First pitch ' + esc(g.pitch) + ' · ' + esc(g.promo) + '</div></div>';
+    }).join('') : '<span class="muted small">No shifts yet. Will posts the schedule after everyone sends availability.</span>';
+    $('sGames').innerHTML = ME.games.map(function (g, k) {
+      return '<button class="gchip ' + (g.avail === 'Y' ? 'y' : 'n') + '" data-k="' + k + '"><span><b>' + esc(g.label) + '</b> <span class="small">' + esc(g.pitch) + '</span><br><span class="small muted">' + esc(g.promo) + '</span></span><span>' + (g.avail === 'Y' ? 'Can work' : 'Can\'t') + '</span></button>';
+    }).join('');
+    $('sGames').querySelectorAll('.gchip').forEach(function (b) { b.onclick = function () { var g = ME.games[Number(b.dataset.k)]; g.avail = g.avail === 'Y' ? 'N' : 'Y'; draw(); }; });
+    chips('sPref', 'prefers', ''); chips('sWont', 'wont', 'no');
+  }
+  function chips(el, key, extra) {
+    $(el).innerHTML = ME.spots.map(function (s) { var on = ME[key].indexOf(lc(s)) >= 0; return '<button class="chip ' + extra + (on ? ' on' : '') + '" data-s="' + esc(s) + '">' + esc(s) + '</button>'; }).join('');
+    $(el).querySelectorAll('.chip').forEach(function (b) {
+      b.onclick = function () { var s = lc(b.dataset.s), a = ME[key], k = a.indexOf(s); if (k >= 0) a.splice(k, 1); else a.push(s); draw(); };
+    });
+  }
+  $('sAll').onclick = function () { ME.games.forEach(function (g) { g.avail = 'Y'; }); draw(); };
+  $('sNone').onclick = function () { ME.games.forEach(function (g) { g.avail = 'N'; }); draw(); };
+  $('sSave').onclick = function () {
+    var names = {}; ME.spots.forEach(function (s) { names[lc(s)] = s; });
+    call('apiStaffSave', NAME, CODE, ME.games.map(function (g) { return g.avail; }),
+      ME.wont.map(function (s) { return names[s] || s; }), ME.prefers.map(function (s) { return names[s] || s; }))
+      .then(function (me) { ME = me; draw(); toast('Saved. Thanks!'); });
+  };
+})();
+</script>
+</body>
+</html>

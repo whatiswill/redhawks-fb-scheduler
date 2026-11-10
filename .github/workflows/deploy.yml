@@ -1,0 +1,53 @@
+name: Deploy to Apps Script
+# Pushes src/ to the Apps Script project bound to the scheduler sheet and
+# moves the existing web app deployment to a new version, so the app link
+# never changes.
+#
+# Manual only for now (Actions tab > Deploy to Apps Script > Run workflow).
+# To deploy on every merge to main, uncomment the push trigger below.
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: Version note shown in Apps Script
+        required: false
+        default: Deployed from GitHub
+  # push:
+  #   branches: [main]
+  #   paths: [src/**]
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: bash scripts/check.sh
+      - name: Install clasp
+        run: npm install -g @google/clasp@2.4.2
+      - name: Write clasp credentials and project file
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ vars.SCRIPT_ID }}
+        run: |
+          test -n "$CLASPRC_JSON" || { echo "Missing secret CLASPRC_JSON"; exit 1; }
+          test -n "$SCRIPT_ID" || { echo "Missing variable SCRIPT_ID"; exit 1; }
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          printf '{"scriptId":"%s","rootDir":"src"}' "$SCRIPT_ID" > .clasp.json
+      - name: Push code
+        run: clasp push --force
+      - name: Update the web app deployment
+        env:
+          DEPLOYMENT_ID: ${{ vars.DEPLOYMENT_ID }}
+          NOTE: ${{ github.event.inputs.description || 'Deployed from GitHub' }}
+        run: |
+          if [ -n "$DEPLOYMENT_ID" ]; then
+            clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "$NOTE ($GITHUB_SHA)"
+          else
+            echo "No DEPLOYMENT_ID set: code is pushed to the editor but the live link is unchanged."
+          fi
