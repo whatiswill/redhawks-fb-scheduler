@@ -33,6 +33,22 @@ After changing the code later, use **Deploy > Manage deployments > Edit (pencil)
 
 Rows on Schedule, Availability and Staff line up by position. Add new people at the bottom of Staff, then run **RedHawks Scheduler > Add rows for new staff**.
 
+## What you can type in a Schedule cell
+
+The app reads the same shorthand as your 2026 sheets:
+
+| You type | The app reads it as |
+|---|---|
+| `OFF`, `Sick`, `N/A` | Off for that game |
+| `X` | Working their home spot |
+| A spot name, or a short form: `Conc. 6`, `Till 7`, `Leine Lodge`, `Captain`, `DD 3rdB`, `UND`, `Surfside` | Working that spot |
+| Anything ending in `?` (or starting with `? `) | Asked, not confirmed yet (blue) |
+| A note: `Start 7:30`, `w/ Bud`, `at 1pm`, `12 arrival` | Working their home spot, with the note kept |
+| A spot plus a note: `IceCream(to7:30)`, `Picnic LN` | That spot, with the note kept |
+| A role: `Beer`, `Alternate`, `Concessions` | Working, spot not set yet |
+
+Anything else shows up under **Check for problems** so you can fix it. To teach the app another short form for a spot, type it in column F ("Also called") on the Spots tab, separated by commas.
+
 ## How auto-fill decides
 
 1. People locked to their stand get it whenever they're available.
